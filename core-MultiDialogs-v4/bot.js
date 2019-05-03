@@ -6,6 +6,7 @@ const { BASE_DIALOG,
     INITIAL_PROMPT,
     HOTELS_DIALOG,
     INITIAL_HOTEL_PROMPT,
+    CHECKIN_TIME_PROMPT,
     FLIGHTS_DIALOG,
     SUPPORT_DIALOG
 } = require('./const');
@@ -24,6 +25,7 @@ class MyBot {
         this.dialogSet = new DialogSet(this.conversationStateAccessor);
         this.dialogSet.add(new ChoicePrompt(INITIAL_PROMPT, this.validateNumberOfAttempts.bind(this)));
         this.dialogSet.add(new TextPrompt(INITIAL_HOTEL_PROMPT));
+        this.dialogSet.add(new TextPrompt(CHECKIN_TIME_PROMPT));
         this.dialogSet.add(new FlightDialog(FLIGHTS_DIALOG));
 
         // Define the steps of the base waterfall dialog and add it to the set.
