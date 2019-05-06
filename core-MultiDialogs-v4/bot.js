@@ -1,12 +1,13 @@
 const { ActivityTypes, TurnContext } = require('botbuilder');
-const { DialogSet, WaterfallDialog, TextPrompt, ChoicePrompt } = require('botbuilder-dialogs');
+const { DialogSet, WaterfallDialog, TextPrompt, DateTimePrompt, ChoicePrompt } = require('botbuilder-dialogs');
 const { FlightDialog } = require('./dialogs/flights');
 const { hotelsDialog } = require('./dialogs/hotels');
 const { BASE_DIALOG, 
     INITIAL_PROMPT,
     HOTELS_DIALOG,
     INITIAL_HOTEL_PROMPT,
-    CHECKIN_TIME_PROMPT,
+    CHECKIN_DATETIME_PROMPT,
+    HOW_MANY_NIGHTS_PROMPT,
     FLIGHTS_DIALOG,
     SUPPORT_DIALOG
 } = require('./const');
@@ -25,7 +26,8 @@ class MyBot {
         this.dialogSet = new DialogSet(this.conversationStateAccessor);
         this.dialogSet.add(new ChoicePrompt(INITIAL_PROMPT, this.validateNumberOfAttempts.bind(this)));
         this.dialogSet.add(new TextPrompt(INITIAL_HOTEL_PROMPT));
-        this.dialogSet.add(new TextPrompt(CHECKIN_TIME_PROMPT));
+        this.dialogSet.add(new DateTimePrompt(CHECKIN_DATETIME_PROMPT));
+        this.dialogSet.add(new TextPrompt(HOW_MANY_NIGHTS_PROMPT));
         this.dialogSet.add(new FlightDialog(FLIGHTS_DIALOG));
 
         // Define the steps of the base waterfall dialog and add it to the set.
@@ -88,7 +90,6 @@ class MyBot {
         if(answer === 'Flight') {
             return await stepContext.beginDialog(FLIGHTS_DIALOG);
         }
-        await stepContext.context.sendActivity('ok, got it');
         return await stepContext.endDialog();
     }
 

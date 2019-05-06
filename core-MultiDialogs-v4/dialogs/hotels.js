@@ -1,4 +1,8 @@
-const { INITIAL_HOTEL_PROMPT, CHECKIN_TIME_PROMPT } = require('../const');
+const { 
+    INITIAL_HOTEL_PROMPT, 
+    CHECKIN_DATETIME_PROMPT, 
+    HOW_MANY_NIGHTS_PROMPT 
+} = require('../const');
 
 const hotelsDialog = [
     async (stepContext) => {
@@ -11,25 +15,47 @@ const hotelsDialog = [
     },
     async (stepContext) => {
         const destination = stepContext.result;
+        stepContext.values.destination = destination;
         await stepContext.context.sendActivity(`Looking for hotels in ${destination}`);
         return stepContext.next();
     },
     async (stepContext) => {
-        try {
         return await stepContext.prompt(
-            CHECKIN_TIME_PROMPT, {
+            CHECKIN_DATETIME_PROMPT, {
                 prompt: 'When do you want to check in?'
             }
         );
-    }catch(err) {
-        console.log(err);
-    }
     },
     async (stepContext) => {
-        const checkinTime = stepContext.result;
-        await stepContext.context.sendActivity(`You said ${checkinTime}`);
-        const x = 9;
+        const checkinTime = stepContext.result[1].value;
+        stepContext.values.checkinTime = checkinTime;
+        return stepContext.next();
     },
+    async (stepContext) => {
+        return await stepContext.prompt(
+            HOW_MANY_NIGHTS_PROMPT, {
+                prompt: 'How many nights do you want to stay?'
+            }
+        );
+    },
+    async (stepContext) => {
+        const numberofnights = stepContext.result;
+        stepContext.values.numberofnights = parseInt(numberofnights);
+        return stepContext.next();
+    },
+    async (stepContext) => {
+        const destination = stepContext.values.destination;
+        const checkIn = new Date(stepContext.values.checkinTime);
+        const checkOut = addDays(checkIn, stepContext.values.numberofnights);
+        await stepContext.context.sendActivity(`Ok. Searching for Hotels in ${destination} from ${checkIn.toDateString()} to ${checkOut.toDateString()}...`);
+    }
+  
 ];
+
+const addDays = (startDate, days) => {
+    const date = startDate;
+    date.setDate(date.getDate() + days);
+    return date;
+};
 
 exports.hotelsDialog = hotelsDialog;
