@@ -1,69 +1,65 @@
-const { ActivityTypes, TurnContext } = require('botbuilder');
-const { DialogSet, WaterfallDialog, TextPrompt, DateTimePrompt, ChoicePrompt } = require('botbuilder-dialogs');
-const { FlightDialog } = require('./dialogs/flights');
-const { hotelsDialog } = require('./dialogs/hotels');
-const { BASE_DIALOG, 
+const { DialogSet, DialogTurnStatus, ComponentDialog, WaterfallDialog, TextPrompt, DateTimePrompt, ChoicePrompt } = require('botbuilder-dialogs');
+const { FlightDialog } = require('./flights');
+const { hotelsDialog } = require('./hotels');
+const { BASE_DIALOG,
+    MAIN_DIALOG,
     INITIAL_PROMPT,
     HOTELS_DIALOG,
     INITIAL_HOTEL_PROMPT,
     CHECKIN_DATETIME_PROMPT,
     HOW_MANY_NIGHTS_PROMPT,
     FLIGHTS_DIALOG,
-    SUPPORT_DIALOG
-} = require('./const');
+    USER_PROFILE_PROPERTY,
+    CONVERSATION_STATE_ACCESSOR
+} = require('../const');
 
-// Define identifiers for our state property accessors.
-const CONVERSATION_STATE_ACCESSOR = 'conversationStateAccessor';
-
-class MyBot {
-    constructor(conversationState) {
-	    // Create the state property accessor and save the state
-        this.conversationStateAccessor = conversationState.createProperty(CONVERSATION_STATE_ACCESSOR);
+class MainDialog extends ComponentDialog {
+    constructor(userState, conversationState) {
+        super(MAIN_DIALOG);
+        this.userState = userState;
         this.conversationState = conversationState;
+        this.userProfileAccessor = userState.createProperty(USER_PROFILE_PROPERTY);
+        this.conversationStateAccessor = userState.createProperty(CONVERSATION_STATE_ACCESSOR);
 
         // Create a dialog set for the bot. It requires a DialogState accessor, with which
         // to retrieve the dialog state from the turn context.
-        this.dialogSet = new DialogSet(this.conversationStateAccessor);
-        this.dialogSet.add(new ChoicePrompt(INITIAL_PROMPT, this.validateNumberOfAttempts.bind(this)));
-        this.dialogSet.add(new TextPrompt(INITIAL_HOTEL_PROMPT));
-        this.dialogSet.add(new DateTimePrompt(CHECKIN_DATETIME_PROMPT));
-        this.dialogSet.add(new TextPrompt(HOW_MANY_NIGHTS_PROMPT));
-        this.dialogSet.add(new FlightDialog(FLIGHTS_DIALOG));
+        this.addDialog(new ChoicePrompt(INITIAL_PROMPT, this.validateNumberOfAttempts.bind(this)));
+        this.addDialog(new TextPrompt(INITIAL_HOTEL_PROMPT));
+        this.addDialog(new DateTimePrompt(CHECKIN_DATETIME_PROMPT));
+        this.addDialog(new TextPrompt(HOW_MANY_NIGHTS_PROMPT));
+        this.addDialog(new FlightDialog(FLIGHTS_DIALOG));
 
         // Define the steps of the base waterfall dialog and add it to the set.
-        this.dialogSet.add(new WaterfallDialog(BASE_DIALOG, [
+        this.addDialog(new WaterfallDialog(BASE_DIALOG, [
             this.promptForBaseChoice.bind(this),
             this.respondToBaseChoice.bind(this),
         ]));
 
         // Define the steps of the hotels waterfall dialog and add it to the set.
-        this.dialogSet.add(new WaterfallDialog(HOTELS_DIALOG, hotelsDialog));
+        this.addDialog(new WaterfallDialog(HOTELS_DIALOG, hotelsDialog));
+
+        this.initialDialogId = BASE_DIALOG;
+
     }
-    
+
     /**
-     *
-     * @param {TurnContext} turnContext turn context object.
+     * The run method handles the incoming activity (in the form of a TurnContext) and passes it through the dialog system.
+     * If no dialog is active, it will start the default dialog.
+     * @param {*} turnContext
+     * @param {*} accessor
      */
-    async onTurn(turnContext) {
-        const conversationData = await this.conversationStateAccessor.get(turnContext, { attempts: 0 });
+    async run(turnContext, accessor) {
+        const dialogSet = new DialogSet(accessor);
+        dialogSet.add(this);
+
+        const conversationData = await dialogSet.dialogState.get(turnContext, { attempts: 0 });
         turnContext.turnState.set('conversationData', conversationData);
-        switch (turnContext.activity.type) {
-            case ActivityTypes.Message:
-                // Generate a dialog context for our dialog set.
-                const dialogContext = await this.dialogSet.createContext(turnContext);
-                if (!dialogContext.activeDialog) {
-                    await dialogContext.beginDialog(BASE_DIALOG);
-                }else {
-                    await dialogContext.continueDialog();
-                }
-                break;
-            case ActivityTypes.EndOfConversation:
-            case ActivityTypes.DeleteUserData:
-                break;
-            default:
-                break;
+
+        const dialogContext = await dialogSet.createContext(turnContext);
+        const results = await dialogContext.continueDialog();
+        if (results.status === DialogTurnStatus.empty) {
+            await dialogContext.beginDialog(this.id);
         }
-        this.conversationState.saveChanges(turnContext);
     }
 
     async promptForBaseChoice(stepContext) {
@@ -96,9 +92,9 @@ class MyBot {
     async validateNumberOfAttempts(promptContext) {
         const localConversationData = promptContext.context.turnState.get('conversationData');
         localConversationData.attempts++;
+        promptContext.context.turnState.set(localConversationData);
         await this.conversationStateAccessor.set(promptContext.context, localConversationData);
-        await this.conversationState.saveChanges(promptContext.context);
-
+        //await this.conversationState.saveChanges(promptContext.context);
         if (localConversationData.attempts > 3) {
             // cancel everything
             await promptContext.context.sendActivity('Ooops! Too many attemps :( But don\'t worry, I\'m handling that exception and you can try again!');
@@ -113,4 +109,5 @@ class MyBot {
     }
 }
 
-module.exports.MyBot = MyBot;
+module.exports.MainDialog = MainDialog;
+module.exports.MAIN_DIALOG = MAIN_DIALOG;
