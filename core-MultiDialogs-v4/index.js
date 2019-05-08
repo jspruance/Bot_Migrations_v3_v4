@@ -10,7 +10,8 @@ const restify = require('restify');
 const { BotFrameworkAdapter, MemoryStorage, UserState, ConversationState } = require('botbuilder');
 
 // This bot's main dialog.
-const { MyBot } = require('./bot');
+const { MainDialog } = require('./dialogs/main')
+const { ReservationBot } = require('./bots/reservationbot');
 
 // Import required bot configuration.
 const ENV_FILE = path.join(__dirname, '.env');
@@ -46,15 +47,17 @@ adapter.onTurnError = async (context, error) => {
 const memoryStorage = new MemoryStorage();
 
 // Create user and conversation state with in-memory storage provider.
+const userState = new UserState(memoryStorage);
 const conversationState = new ConversationState(memoryStorage);
 
-// Create the bot.
-const myBot = new MyBot(conversationState);
+// Create the base dialog and bot
+const dialog = new MainDialog(userState, conversationState);
+const reservationBot = new ReservationBot(conversationState, userState, dialog);
 
 // Listen for incoming requests.
 server.post('/api/messages', (req, res) => {
     adapter.processActivity(req, res, async (context) => {
         // Route to main dialog.
-        await myBot.onTurn(context);
+        await reservationBot.run(context);
     });
 });
