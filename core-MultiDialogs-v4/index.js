@@ -11,7 +11,7 @@ const { BotFrameworkAdapter, MemoryStorage, UserState, ConversationState } = req
 
 // This bot's main dialog.
 const { MainDialog } = require('./dialogs/main')
-const { ReservationBot } = require('./bots/reservationbot');
+const { ReservationBot } = require('./bots/reservationBot');
 
 // Import required bot configuration.
 const ENV_FILE = path.join(__dirname, '.env');
